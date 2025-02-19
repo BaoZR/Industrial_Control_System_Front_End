@@ -1,9 +1,10 @@
-*.qkqd
+*.gkqd
 fragment_1.py
 保存格式.xlsx
-web\*
-test2\*
-test-rect\*
-test-line\*
-test-elipse\*
-table-model\*
+web
+test2
+test-rect
+test-line
+test-ellipse
+table-model
+
