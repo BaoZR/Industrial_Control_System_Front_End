@@ -17,7 +17,7 @@ from PyQt5.QtWidgets import (QApplication, QGraphicsView, QGraphicsScene,
 image_list = [
     ["gas-meter","hydrant"],
     ["temp-meter","water-meter"],
-    ["water-valve"],
+    ["water-valve","wind-meter"],
     ["rectangle","line"],
     ["ellipse","text"]
 ]
@@ -34,12 +34,12 @@ white_color = QColor(255,255,255,255)
 black_color = QColor(0,0,0,255)
 server_port = 5005
 server_address = "127.0.0.1"
-device_type_sn_list = ["gas-meter","temp-meter","wind-meter","water-meter","water-meter"]
+device_type_sn_list = ["gas-meter","temp-meter","wind-meter","water-meter"]
 
 class MySignal(QObject):
     set_table_properties_signal = pyqtSignal(QGraphicsItem)
     clear_table_properties_signal = pyqtSignal()
-    update_item_signal = pyqtSignal(QGraphicsItem)
+    update_mypicture_signal = pyqtSignal(str)
 
 my_signal = MySignal()
 
@@ -119,7 +119,6 @@ class MyPictureItem(QGraphicsItemGroup):
         self.textItem:QGraphicsTextItem = QGraphicsTextItem()
         self.textItem.setTextWidth(text_width)
         self.textItem.setFlag(QGraphicsItem.GraphicsItemFlag.ItemStacksBehindParent)
-        self.textItem.setPlainText(text)
         self.textItem.setPos(text_relevate_pos.x(),text_relevate_pos.y())
         self.setZValue(zValue)
 
@@ -132,6 +131,8 @@ class MyPictureItem(QGraphicsItemGroup):
         self.device_sn = None
         if pic_name in device_type_sn_list:
             self.device_sn = ""
+
+        self.textItem.setPlainText(MyPictureItem.get_chinese_name(pic_name))
 
     def keyPressEvent(self, event:QKeyEvent):
 
@@ -163,8 +164,6 @@ class MyPictureItem(QGraphicsItemGroup):
             "pos": [self.pos().x(),self.pos().y()],
             "icon_width": self.picItem.pixmap().width(),
             "text": self.textItem.toPlainText(),
-            "text_relative": [self.textItem.pos().x(),self.textItem.pos().y()],
-            "text_width": self.textItem.textWidth(),
             "zValue": self.zValue()
         }
         if self.device_sn is not None and self.pic_name in device_type_sn_list:
@@ -175,6 +174,24 @@ class MyPictureItem(QGraphicsItemGroup):
 
 
         pass
+
+    @staticmethod
+    def get_chinese_name(s : str)->str:
+        text = "未定义"
+        if s == "gas-meter":
+            text = "气体检测"
+        elif s == "temp-meter":
+            text = "温度计"
+        elif s == "wind-meter":
+            text = "风速计"
+        elif s == "water-meter":
+            text = "水流量计"
+        elif s == "hydrant":
+            text = "水泵"
+        elif s == "water-valve":
+            text = "阀门"
+
+        return text
 
 class MyGraphicsPixmapItem(QGraphicsPixmapItem):
     def keyPressEvent(self, event:QKeyEvent):
@@ -870,6 +887,7 @@ class MyTableModel(QAbstractTableModel):
             elif self.table_structure["pic"][row] == "device_sn":
                 try:
                     item.device_sn = str(value)
+                    item.textItem.setPlainText(MyPictureItem.get_chinese_name(item.pic_name))
                 except Exception as e:
                     traceback.print_exc()
                     pass
@@ -1116,16 +1134,18 @@ class MyGraphicView(QGraphicsView):
         elif picName == "line":
             item = MyGraphicsLineItem()
         elif picName == "gas-meter":
-            item = MyPictureItem("gas-meter","气体检测")
+            item = MyPictureItem("gas-meter")
         elif picName == "hydrant":
-            item = MyPictureItem("hydrant","水泵")
+            item = MyPictureItem("hydrant")
         elif picName == "temp-meter":
-            item = MyPictureItem("temp-meter","温度计")
+            item = MyPictureItem("temp-meter")
         elif picName == "water-meter":
-            item = MyPictureItem("water-meter","水流量计")
+            item = MyPictureItem("water-meter")
         elif picName == "water-valve":
-            item = MyPictureItem("water-valve","阀门")
-        
+            item = MyPictureItem("water-valve")
+        elif picName == "wind-meter":
+            item = MyPictureItem("wind-meter")
+
         item.setPos(e.pos())
         self.scene().addItem(item)
         
@@ -1184,6 +1204,8 @@ class MainWindow(QMainWindow):
 
         my_signal.set_table_properties_signal.connect(self.table_model.set_source)
         my_signal.clear_table_properties_signal.connect(self.table_model.clear_model)
+        my_signal.update_mypicture_signal.connect(self.update_mypicture)
+        
         self.open_action.triggered.connect(self.open_file_operate)
         self.save_action.triggered.connect(self.save_file_operate)
         self.delete_action.triggered.connect(self.delete_item_operate)
@@ -1271,8 +1293,11 @@ class MainWindow(QMainWindow):
                 try:
                     response = self.client_socket.recv(1024)
                     print(response)
-                    
-        
+                    res:str = response.decode("ANSI")
+                    dict_obj = self.extract_network_response(res)
+                    if dict_obj is not None:
+                        my_signal.update_mypicture_signal.emit(json.dumps(dict_obj))
+
                 except socket.error as e:
                     print(e)
                     self.client_socket.close()
@@ -1292,11 +1317,11 @@ class MainWindow(QMainWindow):
                     if item_dict["type"] == "MyPictureItem":
                         item : MyPictureItem = MyPictureItem(
                             pic_name = item_dict["pic_name"],
-                            text = item_dict["text"],
+                            #text = item_dict["text"],
                             #pos = QPointF(float(item_dict["pos"][0]), float(item_dict["pos"][1])),
                             icon_width = item_dict["icon_width"],
-                            text_relevate_pos = QPointF(float(item_dict["text_relative"][0]), float(item_dict["text_relative"][1])),
-                            text_width = item_dict["text_width"],
+                            #text_relevate_pos = QPointF(float(item_dict["text_relative"][0]), float(item_dict["text_relative"][1])),
+                            #text_width = item_dict["text_width"],
                             zValue = item_dict["zValue"],
 
                         )
@@ -1380,6 +1405,82 @@ class MainWindow(QMainWindow):
                 my_signal.clear_table_properties_signal.emit()   #清空属性表格
 
         return super().eventFilter(watched, event)
+
+    def extract_network_response(self, strings: str) -> dict:
+        #BF01|notify-to-frontend|0|1739954257839825${"device-sn":"aaaa0002","humidity":"49.510","temperature":"25.040"}\x04
+        if "BF" not in strings or "notify-to-frontend" not in strings:
+            return None
+        head = strings.find("$")
+        tail = strings.find("\04")
+        if head < 0 or tail < 0:
+            return None
+        try:
+            obj = json.loads(strings[head + 1 : tail])
+        except :
+            print("解析失败")
+            return None
+        return obj
+
+    def update_mypicture(self, data:str):
+        obj:dict = json.loads(data)
+        if obj is None:
+            return
+        device_sn = obj.get("device-sn",None)
+        CO = obj.get("CO",None)
+        HCL = obj.get("HCL",None)
+        SO2 = obj.get("SO2",None)
+        humidity = obj.get("humidity",None)
+        temperature = obj.get("temperature",None)
+        water_pressure = obj.get("water-pressure",None)
+        flow_rate = obj.get("flow-rate",None)
+        device_type = None
+        msg = None
+
+        if CO is not None :
+            device_type = "gas-meter"
+            msg = f"CO:{CO}\n"
+            if HCL is not None:
+                msg += f"HCL:{HCL}\n"
+            if SO2 is not None:
+                msg += f"SO2:{SO2}\n"
+            msg = msg[:-1]
+
+        elif temperature is not None:
+            device_type = "temp-meter"
+            msg = f"温度:{temperature}\n"
+            if humidity is not None:
+                msg += f"湿度:{humidity}\n"
+            msg = msg[:-1]
+
+        elif water_pressure is not None:
+            device_type = "water-meter"
+            msg = f"水压:{water_pressure}\n"
+            if flow_rate is not None:
+                msg += f"流速:{flow_rate}\n"
+            msg = msg[:-1]
+
+        elif flow_rate is not None:
+            device_type = "wind-meter"
+            msg = f"风速:{flow_rate}\n"
+        else:
+            device_type = "unknown"
+            #print("未知设备")
+            return
+        
+        msg_is_processed = False
+        for item in self.scene.items():
+            if isinstance(item, MyPictureItem):
+                if item.device_sn == device_sn and item.pic_name == device_type:
+                    item:MyPictureItem
+                    item.textItem.setPlainText(msg)
+                    item.textItem.setPos(QPoint(0,40))
+                    item.textItem.setTextWidth(100)
+                    msg_is_processed = True
+        
+        if not msg_is_processed:
+            print("未处理的设备消息")
+
+        pass
 
 '''
     def add_item_to_scene(self, item):
