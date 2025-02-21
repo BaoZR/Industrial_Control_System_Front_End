@@ -27,6 +27,8 @@ open_icon_path = "./images/action/open.png"
 save_icon_path = "./images/action/save.png"
 delete_icon_path = "./images/action/delete.png"
 clear_icon_path = "./images/action/clear.png"
+edit_icon_path = "./images/action/edit.png"
+watch_icon_path = "./images/action/watch.png"
 suffix =".gkqd"
 filter_str = "工控系统前端(*" + suffix +")"
 default_color_name = "black"
@@ -35,6 +37,7 @@ black_color = QColor(0,0,0,255)
 server_port = 5005
 server_address = "127.0.0.1"
 device_type_sn_list = ["gas-meter","temp-meter","wind-meter","water-meter"]
+
 
 class MySignal(QObject):
     set_table_properties_signal = pyqtSignal(QGraphicsItem)
@@ -274,6 +277,11 @@ class MyGraphicsRectItem(QGraphicsRectItem):
         super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event):
+
+        flags = self.flags()
+        if ((flags & QGraphicsItem.GraphicsItemFlag.ItemIsMovable) != QGraphicsItem.GraphicsItemFlag.ItemIsMovable):
+             return super().mouseMoveEvent(event)  
+
         """ Continue tracking movement while the mouse is pressed. """
         # Calculate how much the mouse has moved since the click.
         pos = event.pos()
@@ -438,6 +446,11 @@ class MyGraphicsLineItem(QGraphicsLineItem):
         return super().mouseReleaseEvent(event)
 
     def mouseMoveEvent(self, event):
+        
+        flags = self.flags()
+        if ((flags & QGraphicsItem.GraphicsItemFlag.ItemIsMovable) != QGraphicsItem.GraphicsItemFlag.ItemIsMovable):
+             return super().mouseMoveEvent(event)
+
         pos = event.pos()
         x_diff = pos.x() - self.click_pos.x()
         y_diff = pos.y() - self.click_pos.y()
@@ -617,6 +630,11 @@ class MyGraphicsEllipseItem(QGraphicsEllipseItem):
         return super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event):
+        
+        flags = self.flags()
+        if ((flags & QGraphicsItem.GraphicsItemFlag.ItemIsMovable) != QGraphicsItem.GraphicsItemFlag.ItemIsMovable):
+             return super().mouseMoveEvent(event)
+        
         pos = event.pos()
         x_diff = pos.x() - self.click_pos.x()
         y_diff = pos.y() - self.click_pos.y()
@@ -636,7 +654,7 @@ class MyGraphicsEllipseItem(QGraphicsEllipseItem):
 
         self.setRect(rect)
         #print(rect.x(), rect.y(), rect.width(), rect.height())
-        # return super().mouseMoveEvent(event) 这句话不能加
+        #return super().mouseMoveEvent(event) #这句话不能加
 
     def hoverMoveEvent(self, event):
         pos = event.pos()
@@ -1193,6 +1211,7 @@ class MainWindow(QMainWindow):
         #print(id(self))
         # main layout
         self.main_layout =  QHBoxLayout(central_widget)
+        self.is_watch_mode = False
 
         self.init_left()
         self.init_center_and_right()
@@ -1210,6 +1229,8 @@ class MainWindow(QMainWindow):
         self.save_action.triggered.connect(self.save_file_operate)
         self.delete_action.triggered.connect(self.delete_item_operate)
         self.clear_action.triggered.connect(self.clear_operate)
+        self.edit_action.triggered.connect(self.edit_mode_operate)
+        self.watch_action.triggered.connect(self.watch_mode_operate)
 
         self.installEventFilter(self)
 
@@ -1261,11 +1282,14 @@ class MainWindow(QMainWindow):
         self.save_action = QAction(QIcon(save_icon_path),"保存", self)
         self.delete_action = QAction(QIcon(delete_icon_path),"删除", self)
         self.clear_action = QAction(QIcon(clear_icon_path),"清空", self)
+        self.edit_action = QAction(QIcon(edit_icon_path),"编辑", self)
+        self.watch_action = QAction(QIcon(watch_icon_path),"查看", self)
         self.toolbar.setContentsMargins(20,0,0,0)
         self.toolbar.addAction(self.open_action)
         self.toolbar.addAction(self.save_action)
         self.toolbar.addAction(self.delete_action)
         self.toolbar.addAction(self.clear_action)
+        self.toolbar.addAction(self.edit_action)
         self.toolbar.setFloatable(False)
         self.toolbar.setMovable(False)
         pass
@@ -1292,19 +1316,18 @@ class MainWindow(QMainWindow):
             while True:
                 try:
                     response = self.client_socket.recv(1024)
-                    print(response)
+                    #print(response)
                     res:str = response.decode("ANSI")
                     dict_obj = self.extract_network_response(res)
                     if dict_obj is not None:
                         my_signal.update_mypicture_signal.emit(json.dumps(dict_obj))
-
+                        pass
                 except socket.error as e:
                     print(e)
                     self.client_socket.close()
                     self.client_socket = None
                     self.is_connected = False
                     break
-
 
     def open_file_operate(self):
         open_file = QFileDialog.getOpenFileName(self,"打开设计文件", "./",filter_str)
@@ -1373,6 +1396,10 @@ class MainWindow(QMainWindow):
                         self.scene.addItem(item)
                         pass
 
+        if self.is_watch_mode == True:      
+            self.set_all_item_in_scene_readonly(True)
+        pass
+
     def save_file_operate(self):
         save_file = QFileDialog.getSaveFileName(self,"保存设计文件", "./",filter_str)
         print(save_file[0])
@@ -1397,6 +1424,43 @@ class MainWindow(QMainWindow):
 
     def clear_operate(self):
         self.scene.clear()
+
+    def edit_mode_operate(self):
+        #进入查看模式True 
+        self.is_watch_mode = True
+
+        self.toolbar.removeAction(self.edit_action)
+        self.toolbar.addAction(self.watch_action)
+        self.delete_action.setEnabled(False)
+        self.clear_action.setEnabled(False)
+
+        for i in range(self.grid_layout.count()):
+            item = self.grid_layout.itemAt(i)
+            if item is not None:
+                item.widget().setEnabled(False)
+
+        self.grid_layout.setEnabled(False)
+        # 允许所有item的移动和聚焦
+        self.set_all_item_in_scene_readonly(True)
+        pass
+
+    def watch_mode_operate(self):
+        self.is_watch_mode = False
+
+        self.toolbar.removeAction(self.watch_action)
+        self.toolbar.addAction(self.edit_action)
+
+        self.delete_action.setEnabled(True)
+        self.clear_action.setEnabled(True)
+
+        for i in range(self.grid_layout.count()):
+            item = self.grid_layout.itemAt(i)
+            if item is not None:
+                item.widget().setEnabled(True)
+
+        # 禁止所有item的移动和聚焦
+        self.set_all_item_in_scene_readonly(False)
+        pass
 
     def eventFilter(self, watched, event:QEvent):
         if event.type() == QEvent.Type.KeyPress:
@@ -1478,9 +1542,19 @@ class MainWindow(QMainWindow):
                     msg_is_processed = True
         
         if not msg_is_processed:
-            print("未处理的设备消息")
-
+            #print("未处理的设备消息")
+            pass
         pass
+
+    def set_all_item_in_scene_readonly(self, readonly:bool):
+        for item in self.scene.items():
+            if isinstance(item, MyPictureItem) or isinstance(item, MyGraphicsRectItem) or isinstance(item, MyGraphicsLineItem) or isinstance(item, MyGraphicsEllipseItem) or isinstance(item, MyGraphicsSimpleTextItem):
+
+                item.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, not readonly)
+                item.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsFocusable, not readonly)
+                #if isinstance(item, MyGraphicsRectItem) or isinstance(item, MyGraphicsLineItem) or isinstance#(item, MyGraphicsEllipseItem):
+                    #item.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, not readonly)
+
 
 '''
     def add_item_to_scene(self, item):
