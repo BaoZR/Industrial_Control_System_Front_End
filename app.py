@@ -57,7 +57,7 @@ class MySignal(QObject):
     change_blower_speed_signal = pyqtSignal(int,str)
 
 class FanSignal(QObject):
-    fanfan_singal = pyqtSignal(int)
+    fan_singal = pyqtSignal(int)
 
 my_signal = MySignal()
 
