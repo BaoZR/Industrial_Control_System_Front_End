@@ -1,7 +1,7 @@
 *.gkqd
 fragment_1.py
 保存格式.xlsx
-web
+web/connect_server.py
 test2
 test-rect
 test-line
