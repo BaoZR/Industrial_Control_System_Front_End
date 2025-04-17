@@ -8,18 +8,20 @@ import socket
 import threading
 
 
-from PyQt5.QtCore import Qt, QRectF, QSize, QObject,pyqtSignal, QMimeData, QPoint, QPointF, QRect, QLineF, QLine, QTimer, QEvent, QRect, QAbstractTableModel,QModelIndex
+from PyQt5.QtCore import Qt, QRectF, QSize, QObject,pyqtSignal, QMimeData, QPoint, QPointF, QRect, QLineF, QLine, QTimer, QEvent, QRect, QAbstractTableModel,QModelIndex,pyqtProperty,QPropertyAnimation
 from PyQt5.QtGui import QPen, QBrush, QColor, QResizeEvent,QMouseEvent, QDrag, QPainter, QPixmap, QImage, QPainterPath, QPolygonF, QPolygon, QFont, QFontMetrics, QPainterPathStroker, QTransform, QKeyEvent, QDropEvent,QColorConstants,QIcon
 from PyQt5.QtWidgets import (QApplication, QGraphicsView, QGraphicsScene,
                                QGraphicsItem, QGraphicsRectItem, QMainWindow,
-                               QVBoxLayout, QWidget, QLabel,QGraphicsItemGroup,QGraphicsTextItem,QGraphicsPixmapItem,QGraphicsLineItem,QGraphicsSimpleTextItem,QGraphicsEllipseItem,QHBoxLayout,QVBoxLayout,QTableWidgetItem, QSplitter, QTableWidget, QHeaderView,QGridLayout,QTableView,QAction,QFileDialog)
+                               QVBoxLayout, QWidget, QLabel,QGraphicsItemGroup,QGraphicsTextItem,QGraphicsPixmapItem,QGraphicsLineItem,QGraphicsSimpleTextItem,QGraphicsEllipseItem,QHBoxLayout,QVBoxLayout,QTableWidgetItem, QSplitter, QTableWidget, QHeaderView,QGridLayout,QTableView,QAction,QFileDialog,QGraphicsWidget)
 
 image_list = [
     ["gas-meter","hydrant"],
     ["temp-meter","water-meter"],
     ["water-valve","wind-meter"],
+    ["blower"],
     ["rectangle","line"],
     ["ellipse","text"]
+
 ]
 pic_folder_path = "./images/"
 pic_suffix = ".png"
@@ -36,13 +38,26 @@ white_color = QColor(255,255,255,255)
 black_color = QColor(0,0,0,255)
 server_port = 5005
 server_address = "127.0.0.1"
-device_type_sn_list = ["gas-meter","temp-meter","wind-meter","water-meter"]
+my_picture_has_sn_type_list = ["gas-meter","temp-meter","wind-meter","water-meter"]
+object_list = []
+
+#can interact class type
+class MyPictureItem: pass
+class MyGraphicsRectItem: pass
+class MyGraphicsLineItem: pass
+class MyGraphicsSimpleTextItem: pass
+class MyGraphicsEllipseItem: pass
+class BlowerPixmapBase: pass
 
 
 class MySignal(QObject):
     set_table_properties_signal = pyqtSignal(QGraphicsItem)
     clear_table_properties_signal = pyqtSignal()
     update_mypicture_signal = pyqtSignal(str)
+    change_blower_speed_signal = pyqtSignal(int,str)
+
+class FanSignal(QObject):
+    fanfan_singal = pyqtSignal(int)
 
 my_signal = MySignal()
 
@@ -85,6 +100,14 @@ def get_p2_from_p1(p1:QPointF, length:float, angle:float)->QPointF:
         dy = -length * math.sin(math.radians(angle))
         #print(dx,dy)
     return QPointF(p1.x() + dx, p1.y() + dy)
+
+def is_valid_interact_class_type(item)->bool:
+    """ Check if a class is a valid interact class type. """
+    interact_class_type = [MyPictureItem,MyGraphicsRectItem,MyGraphicsLineItem,MyGraphicsSimpleTextItem,MyGraphicsEllipseItem,BlowerPixmapBase]
+    for cls in interact_class_type:
+        if isinstance(item,cls):
+            return True
+    return False
 
 class DragLabel(QLabel):
 
@@ -132,7 +155,7 @@ class MyPictureItem(QGraphicsItemGroup):
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsFocusable)
 
         self.device_sn = None
-        if pic_name in device_type_sn_list:
+        if pic_name in my_picture_has_sn_type_list:
             self.device_sn = ""
 
         self.textItem.setPlainText(MyPictureItem.get_chinese_name(pic_name))
@@ -169,7 +192,7 @@ class MyPictureItem(QGraphicsItemGroup):
             "text": self.textItem.toPlainText(),
             "zValue": self.zValue()
         }
-        if self.device_sn is not None and self.pic_name in device_type_sn_list:
+        if self.device_sn is not None and self.pic_name in my_picture_has_sn_type_list:
             d["device_sn"] = self.device_sn
         return d
 
@@ -715,6 +738,189 @@ class MyGraphicsEllipseItem(QGraphicsEllipseItem):
             "zValue": self.zValue()
         }
 
+class BlowerPixmap(QGraphicsPixmapItem):
+    def __init__(self,
+                 pixmap,
+                 parent=None):
+        super().__init__(parent)
+        self.setPixmap(pixmap)
+
+    def shape(self):
+        return QPainterPath()
+
+    pass
+
+class clickedRectItem(QGraphicsRectItem):
+    def __init__(self, level = None, parent=None):
+        super().__init__(parent)
+        self.level = level
+        self.signal = FanSignal()
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+
+            if self.level is not None:
+                self.signal.fan_singal.emit(self.level)
+        return super().mousePressEvent(event)
+    
+
+class BlowerPixmapBase(QGraphicsPixmapItem):
+    def __init__(self,
+                 pixmap,
+                 parent=None):
+        super().__init__(parent)
+        self.setPixmap(pixmap)
+        self.device_sn = ""
+    def keyPressEvent(self, event:QKeyEvent):
+
+        x = self.x()
+        y = self.y()
+
+        key = event.key()
+        if(key == Qt.Key.Key_Down):
+            y = y + 1  
+        elif(key == Qt.Key.Key_Up):
+            y = y - 1
+        elif(key == Qt.Key.Key_Left):
+            x = x - 1
+        elif(key == Qt.Key.Key_Right):
+            x = x + 1
+        elif(key == Qt.Key.Key_Delete):
+            self.scene().removeItem(self)
+            #print("view keyPressEvent")
+            
+        self.setPos(x,y)
+
+        return super().keyPressEvent(event)
+
+    def to_dict(self)->dict:
+        """ Convert the item to a dictionary. """
+        d = {
+            "type":"BlowerPixmapBase",
+            "pos": [self.pos().x(), self.pos().y()],
+            "zValue": self.zValue()
+        }
+        if self.device_sn is not None:
+            d["device_sn"] = self.device_sn
+        return d
+    pass
+
+class BlowerWrapper(QGraphicsWidget):
+        
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        fan_pixmap = QPixmap("./images/fan.png")
+        blower_frame_pixmap = QPixmap("./images/blower_frame.png")
+        background_pixmap = QPixmap("./images/background.png")
+        self.blower_base = BlowerPixmapBase(background_pixmap)
+        self.fan_item = BlowerPixmap(fan_pixmap)
+        self.blower_frame = BlowerPixmap(blower_frame_pixmap)
+        
+        # self.blower_group = QGraphicsItemGroup()
+        # self.blower_group.addToGroup(self.blower_frame)
+        # self.blower_group.addToGroup(self.fan_item)
+
+        self.option1 = clickedRectItem(level=1)
+        self.option2 = clickedRectItem(level=2)
+        self.option3 = clickedRectItem(level=3)
+
+        #self.blower.addToGroup(self.option1)
+        # self.blower_group.setParentItem(self.blower_base)
+        self.fan_item.setParentItem(self.blower_base)
+        self.blower_frame.setParentItem(self.blower_base)
+        self.option1.setParentItem(self.blower_base)
+        self.option2.setParentItem(self.blower_base)
+        self.option3.setParentItem(self.blower_base)
+        
+        self.fan_item.setTransformOriginPoint(self.fan_item.boundingRect().center())
+        self.cal_rect()
+        self.animation_init()
+        self.option1.signal.fan_singal.connect(self.change_speed)
+        self.option2.signal.fan_singal.connect(self.change_speed)
+        self.option3.signal.fan_singal.connect(self.change_speed)
+        self.blower_base.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, True)
+        self.blower_base.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, True)
+        self.blower_base.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsFocusable, True)
+        self.blower_base.setShapeMode(QGraphicsPixmapItem.ShapeMode.BoundingRectShape)
+        
+        self.level = 0
+
+    def change_speed(self, level:int):
+        if self.blower_base.device_sn is None or self.blower_base.device_sn == "":
+            return
+        if level == self.level:
+            self.level = 0
+            level = 0
+
+        my_signal.change_blower_speed_signal.emit(level,self.blower_base.device_sn)
+        self.animate(level)
+        
+
+    def animation_init(self):
+        self.anim = QPropertyAnimation(self, b'rotation')
+        self.anim.setDuration(1600)
+        self.anim.setStartValue(0)
+        self.anim.setEndValue(360)
+        self.anim.setLoopCount(-1)
+
+    def animate(self,level:int = None):
+        if level is None or level == self.level or level == 0:
+            self.anim.stop()
+            self.set_rect_color(0)
+            self.level = 0
+            return
+        else:
+            level = int(level)
+            self.level = level
+            if level == 1:
+                _time = 1600
+            elif level == 2:
+                _time = 700
+            elif level == 3:
+                _time = 300
+            else:
+                return
+            self.anim.setDuration(_time)
+            self.set_rect_color(self.level)
+            self.anim.start()
+
+    def cal_rect(self):
+        x_len = self.blower_frame.boundingRect().width()
+        y_len = self.blower_frame.boundingRect().height()
+       
+        rect_side_length = x_len / 4
+        x_space = (x_len - rect_side_length * 3 ) / 2
+        x1 = 0.0 
+        y1 = y_len + x_space / 2
+        x2 = rect_side_length + x_space
+        y2 = y_len + x_space / 2
+        x3 = rect_side_length * 2 + x_space * 2
+        y3 = y_len + x_space / 2
+        self.option1.setRect(QRectF(x1, y1, rect_side_length, rect_side_length))
+        self.option2.setRect(QRectF(x2, y2, rect_side_length, rect_side_length))
+        self.option3.setRect(QRectF(x3, y3, rect_side_length, rect_side_length))
+
+    def _set_rotation(self, angle):
+        self.fan_item.setRotation(angle)
+  
+    def set_rect_color(self, level:int):
+        for item in [self.option1, self.option2, self.option3]:
+                item.setBrush(QColor(255, 255, 255, 255))
+                item.setPen(QColor(0,0,0,255))
+
+        if level == 1:
+            self.option1.setBrush(QColor(0, 128, 255, 255))
+            self.option1.setPen(QColor(0, 128, 255, 255))
+        elif level == 2:
+            self.option2.setBrush(QColor(0, 128, 255, 255))
+            self.option2.setPen(QColor(0, 128, 255, 255))
+        elif level == 3:
+            self.option3.setBrush(QColor(0, 128, 255, 255))
+            self.option3.setPen(QColor(0, 128, 255, 255))
+
+    rotation = pyqtProperty(int, fset=_set_rotation)
+    pass
+
 class MyTableModel(QAbstractTableModel):
     def __init__(self):
         super().__init__()
@@ -725,7 +931,8 @@ class MyTableModel(QAbstractTableModel):
             "ellipse":("ellipse_width","ellipse_height","fill_color","line_width","line_color","zValue"),
             "line":("line_width","line_color","line_length","rotate_angle","zValue"),
             "pic":("pic_location","pic_width","text_location","text_width","zValue","device_sn"),
-            "text":("text_content","text_color","text_size","text_font","text_weight","zValue","zValue")
+            "text":("text_content","text_color","text_size","text_font","text_weight","zValue","zValue"),
+            "blower":("zValue","device_sn")
         }
 
     def rowCount(self, parent= QModelIndex()):
@@ -785,7 +992,7 @@ class MyTableModel(QAbstractTableModel):
                 ["文字宽度", str(text.boundingRect().width())],
                 ["zValue",  str(item.zValue())]
             ]
-            if device_sn is not None and item.pic_name in device_type_sn_list:
+            if device_sn is not None and item.pic_name in my_picture_has_sn_type_list:
                 self.data.append(["设备编号", device_sn])
 
         elif isinstance(self.pointer, MyGraphicsRectItem):
@@ -858,8 +1065,19 @@ class MyTableModel(QAbstractTableModel):
                 ['字粗', font_weight],
                 ['zValue', zValue]
             ]
-        #print(self.data)
-        # call this function to update the table view
+            pass
+
+        elif isinstance(self.pointer, BlowerPixmapBase ):
+            item: BlowerPixmapBase = self.pointer
+            zValue = item.zValue()
+            device_sn = item.device_sn
+            self.data = [
+                ["zValue",  str(zValue)]
+            ]
+            if device_sn is not None:
+                self.data.append(["设备编号", device_sn])
+            pass
+
         self.layoutChanged.emit()
 
     def update_source(self, row, col, value):
@@ -870,7 +1088,7 @@ class MyTableModel(QAbstractTableModel):
             if self.table_structure["pic"][row] == "pic_location":
                 try:
                     x, y = value.split(",")
-                    item.setPos(int(x), int(y))
+                    item.setPos(float(x), float(y))
                 except Exception as e:
                     traceback.print_exc()
                     pass
@@ -891,13 +1109,13 @@ class MyTableModel(QAbstractTableModel):
             elif self.table_structure["pic"][row] == "text_width":
                 try:
                     txt: QGraphicsTextItem = item.textItem
-                    txt.setTextWidth(int(value))
+                    txt.setTextWidth(float(value))
                 except Exception as e:
                     traceback.print_exc()
                     pass
             elif self.table_structure["pic"][row] == "zValue":
                 try:
-                    item.setZValue(int(value))
+                    item.setZValue(float(value))
                 except Exception as e:
                     traceback.print_exc()
                     pass
@@ -958,7 +1176,7 @@ class MyTableModel(QAbstractTableModel):
             
             elif self.table_structure["rect"][row] == "zValue":
                 try:
-                    item.setZValue(int(value))
+                    item.setZValue(float(value))
                 except Exception as e:
                     traceback.print_exc()
                     pass
@@ -1010,7 +1228,7 @@ class MyTableModel(QAbstractTableModel):
 
             elif self.table_structure["ellipse"][row] == "zValue":
                 try:
-                    item.setZValue(int(value))
+                    item.setZValue(float(value))
                 except Exception as e:
                     traceback.print_exc()
                     pass
@@ -1062,7 +1280,7 @@ class MyTableModel(QAbstractTableModel):
 
             elif self.table_structure["line"][row] == "zValue":
                 try:
-                    item.setZValue(int(value))
+                    item.setZValue(float(value))
                 except Exception as e:
                     traceback.print_exc()
                     pass
@@ -1113,17 +1331,30 @@ class MyTableModel(QAbstractTableModel):
 
             elif self.table_structure["text"][row] == "zValue":
                 try:
-                    item.setZValue(int(value))
+                    item.setZValue(float(value))
                 except Exception as e:
                     traceback.print_exc()
                     pass
 
-        
+        if isinstance(self.pointer, BlowerPixmapBase):
+            item: BlowerPixmapBase = self.pointer
+            if self.table_structure["blower"][row] == "zValue":
+                try:
+                    item.setZValue(float(value))
+                except Exception as e:
+                    traceback.print_exc()
+            elif self.table_structure["blower"][row] == "device_sn":
+                try:
+                    item.device_sn = str(value)
+                except Exception as e:
+                    traceback.print_exc()
+                    pass
         ###############################################
         self.set_source(self.pointer)
         pass
 
     def clear_model(self):
+        self.pointer = None
         self.data = []
         self.layoutChanged.emit()
         pass
@@ -1163,6 +1394,8 @@ class MyGraphicView(QGraphicsView):
             item = MyPictureItem("water-valve")
         elif picName == "wind-meter":
             item = MyPictureItem("wind-meter")
+        elif picName == "blower":
+            item = BlowerWrapper().blower_base
 
         item.setPos(e.pos())
         self.scene().addItem(item)
@@ -1188,8 +1421,10 @@ class MyGraphicView(QGraphicsView):
         #print("mousePressEvent" + time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()))
         if event.button() == Qt.MouseButton.LeftButton:
             item = self.itemAt(event.pos())
-            if item:
+            if item and is_valid_interact_class_type(item):
                 my_signal.set_table_properties_signal.emit(item)
+            else:
+                my_signal.clear_table_properties_signal.emit()
 
         return super().mousePressEvent(event)
 
@@ -1197,8 +1432,10 @@ class MyGraphicView(QGraphicsView):
         #print("mouseReleaseEvent" + time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()))
         if event.button() == Qt.MouseButton.LeftButton:
             item = self.itemAt(event.pos())
-            if item:
+            if item and is_valid_interact_class_type(item):
                 my_signal.set_table_properties_signal.emit(item)
+            else:
+                my_signal.clear_table_properties_signal.emit()
         return super().mouseReleaseEvent(event)
    
 class MainWindow(QMainWindow):
@@ -1224,6 +1461,7 @@ class MainWindow(QMainWindow):
         my_signal.set_table_properties_signal.connect(self.table_model.set_source)
         my_signal.clear_table_properties_signal.connect(self.table_model.clear_model)
         my_signal.update_mypicture_signal.connect(self.update_mypicture)
+        my_signal.change_blower_speed_signal.connect(self.send_blower_speed)
         
         self.open_action.triggered.connect(self.open_file_operate)
         self.save_action.triggered.connect(self.save_file_operate)
@@ -1294,10 +1532,31 @@ class MainWindow(QMainWindow):
         self.toolbar.setMovable(False)
         pass
 
+    def send_blower_speed(self,level, device_sn):
+        if device_sn == "" or device_sn is None or level > 4 or level < 0:
+            print("args error")
+            return
+        if not self.is_connected or self.client_socket is None:
+            print("not connected")
+            return
+        
+        d = {"device-sn":device_sn,
+                "fan-speed":level,
+                "operation" : "set-wind-pump-speed"
+                }
+        json_str = json.dumps(d)
+        #不考虑重发
+        now = int(round(time.time() * 1000))
+        req = "BF01|device_control|0|" + str(now) +"$"+ json_str + "\04"
+        self.client_socket.send(req.encode("ANSI"))
+        pass
+
     def thread_network(self):        
+
 
         self.client_socket = None
         self.is_connected = False
+
 
         while True:
             # 连接服务器，要求支持服务器断开后持续重连
@@ -1333,25 +1592,21 @@ class MainWindow(QMainWindow):
         open_file = QFileDialog.getOpenFileName(self,"打开设计文件", "./",filter_str)
         if open_file[0] is not None and open_file[0] != "" and open_file[0].endswith(suffix):
             print(open_file[0])
-            self.scene.clear()
+            self.clear_operate()
             with open(open_file[0], "r", encoding="utf-8") as f:
                 data = json.load(f)
                 for item_dict in data:
                     if item_dict["type"] == "MyPictureItem":
                         item : MyPictureItem = MyPictureItem(
                             pic_name = item_dict["pic_name"],
-                            #text = item_dict["text"],
-                            #pos = QPointF(float(item_dict["pos"][0]), float(item_dict["pos"][1])),
                             icon_width = item_dict["icon_width"],
-                            #text_relevate_pos = QPointF(float(item_dict["text_relative"][0]), float(item_dict["text_relative"][1])),
-                            #text_width = item_dict["text_width"],
                             zValue = item_dict["zValue"],
 
                         )
 
                         #还不能写在构造中
                         item.setPos(float(item_dict["pos"][0]), float(item_dict["pos"][1]))
-                        item.device_sn = item_dict.get('device_sn',None)
+                        item.device_sn = item_dict.get('device_sn',"")
                         self.scene.addItem(item)
                     
                     elif item_dict["type"] == "MyGraphicsRectItem":
@@ -1396,6 +1651,13 @@ class MainWindow(QMainWindow):
                         self.scene.addItem(item)
                         pass
 
+                    elif item_dict["type"] == "BlowerPixmapBase":
+                        item : BlowerPixmapBase = BlowerWrapper().blower_base
+                        item.setPos(float(item_dict["pos"][0]), float(item_dict["pos"][1]))
+                        item.setZValue(item_dict["zValue"])
+                        item.device_sn = item_dict.get('device_sn',"")
+                        self.scene.addItem(item)
+                        pass
         if self.is_watch_mode == True:      
             self.set_all_item_in_scene_readonly(True)
         pass
@@ -1407,7 +1669,7 @@ class MainWindow(QMainWindow):
             items = self.scene.items()
             result = []
             for (index, item) in enumerate(items):
-                if isinstance(item, MyPictureItem) or isinstance(item, MyGraphicsRectItem) or isinstance(item, MyGraphicsLineItem) or isinstance(item, MyGraphicsEllipseItem) or isinstance(item, MyGraphicsSimpleTextItem):
+                if is_valid_interact_class_type(item):
                     item_str = (item.to_dict())
                     result.append(item_str)
 
@@ -1417,13 +1679,16 @@ class MainWindow(QMainWindow):
 
     def delete_item_operate(self):
         if self.table_model.pointer is not None and self.table_model.pointer in self.scene.items():
-            print(self)
+                          
             self.scene.removeItem(self.table_model.pointer)
             my_signal.clear_table_properties_signal.emit()
         pass
 
     def clear_operate(self):
-        self.scene.clear()
+        for item in self.scene.items():
+            if is_valid_interact_class_type(item):
+                self.scene.removeItem(item)
+    
 
     def edit_mode_operate(self):
         #进入查看模式True 
@@ -1548,7 +1813,7 @@ class MainWindow(QMainWindow):
 
     def set_all_item_in_scene_readonly(self, readonly:bool):
         for item in self.scene.items():
-            if isinstance(item, MyPictureItem) or isinstance(item, MyGraphicsRectItem) or isinstance(item, MyGraphicsLineItem) or isinstance(item, MyGraphicsEllipseItem) or isinstance(item, MyGraphicsSimpleTextItem):
+            if is_valid_interact_class_type(item):
 
                 item.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, not readonly)
                 item.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsFocusable, not readonly)
@@ -1567,256 +1832,7 @@ class MainWindow(QMainWindow):
         # 设置item可以聚焦，这样才会有键盘按键回调keyPressEvent
         item.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsFocusable, True)
 '''
-'''
-    def set_table_properties(self, item):
-        self.property_table.current_graphics_item = item
-        if isinstance(item, MyGraphicsPixmapItem):
-            print("MyGraphicsPixmapItem")
-            
-        elif isinstance(item, MyGraphicsRectItem):
-            #print("MyGraphicsRectItem")
-            item : MyGraphicsRectItem
-            self.property_table.setRowCount(0)
 
-            table_rect = table_data["rect"]
-            rect = item.rect()
-            for i in range(len(table_rect)):
-                self.property_table.insertRow(i)
-                widget_item = QTableWidgetItem(table_rect[i][2])
-                widget_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                self.property_table.setItem(i,0,widget_item)
-            
-                if table_rect[i][1] == "rect_width":
-                    widget_item = QTableWidgetItem(str(int(rect.width())))
-                    widget_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                    self.property_table.setItem(i,1,widget_item)
-                
-                elif table_rect[i][1] == "rect_height":
-                    widget_item = QTableWidgetItem(str(int(rect.height())))
-                    widget_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                    self.property_table.setItem(i,1,widget_item)
-
-                elif table_rect[i][1] == "fill_color":
-                    brush = item.brush()
-                    color = brush.color()
-                    color_str = f"{color.red()},{color.green()},{color.blue()},{color.alpha()}"
-                    widget_item = QTableWidgetItem(color_str)
-                    widget_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                    self.property_table.setItem(i,1,widget_item)
-
-                elif table_rect[i][1] == "line_width":
-                    width = item.pen().width()
-                    widget_item = QTableWidgetItem(str(width))
-                    widget_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                    self.property_table.setItem(i,1,widget_item)
-
-                elif table_rect[i][1] == "line_color":
-                    color = item.pen().color()
-                    color_str = f"{color.red()},{color.green()},{color.blue()},{color.alpha()}"
-                    widget_item = QTableWidgetItem(color_str)
-                    widget_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                    self.property_table.setItem(i,1,widget_item)
-
-                elif table_rect[i][1] == "zValue":
-                    zValue = item.zValue()
-                    widget_item = QTableWidgetItem(str(zValue))
-                    widget_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                    self.property_table.setItem(i,1,widget_item)
-
-        elif isinstance(item, MyGraphicsLineItem):
-            #print("MyGraphicsLineItem")
-            item: MyGraphicsLineItem
-            self.property_table.setRowCount(0)
-
-            table_line = table_data["line"]
-            for i in range(len(table_line)):
-                self.property_table.insertRow(i)
-                widget_item = QTableWidgetItem(table_line[i][2])
-                widget_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                self.property_table.setItem(i,0,widget_item)
-
-                if table_line[i][1] == "line_width":
-                    width = item.pen().width()
-                    widget_item = QTableWidgetItem(str(width))
-                    widget_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                    self.property_table.setItem(i,1,widget_item)
-                
-                elif table_line[i][1] == "line_color":
-                    color = item.pen().color()
-                    color_str = f"{color.red()},{color.green()},{color.blue()},{color.alpha()}"
-                    widget_item = QTableWidgetItem(color_str)
-                    widget_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                    self.property_table.setItem(i,1,widget_item)
-
-                elif table_line[i][1] == "line_length":
-                    length = item.line().length()
-                    widget_item = QTableWidgetItem(str(round(length,2)))
-                    widget_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                    self.property_table.setItem(i,1,widget_item)
-
-                elif table_line[i][1] == "rotate_angle":
-                    angle = item.line().angle()
-                    widget_item = QTableWidgetItem(str(round(angle,2)))
-                    widget_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                    self.property_table.setItem(i,1,widget_item)
-
-                elif table_line[i][1] == "zValue":
-                    zValue = item.zValue()
-                    widget_item = QTableWidgetItem(str(zValue))
-                    widget_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                    self.property_table.setItem(i,1,widget_item)
-
-        #elif isinstance(item, MyGraphicsSimpleTextItem):
-        #    print("MyGraphicsSimpleTextItem")
-        elif isinstance(item, MyGraphicsEllipseItem):
-            item: MyGraphicsEllipseItem
-            self.property_table.setRowCount(0)
-
-            table_ellipse = table_data["ellipse"]
-            rect = item.rect()
-            for i in range(len(table_ellipse)):
-                self.property_table.insertRow(i)
-                widget_item = QTableWidgetItem(table_ellipse[i][2])
-                widget_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                self.property_table.setItem(i,0,widget_item)
-
-                if table_ellipse[i][1] == "ellipse_width":
-                    widget_item = QTableWidgetItem(str(int(rect.width())))
-                    widget_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                    self.property_table.setItem(i,1,widget_item)
-                
-                elif table_ellipse[i][1] == "ellipse_height":
-                    widget_item = QTableWidgetItem(str(int(rect.height())))
-                    widget_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                    self.property_table.setItem(i,1,widget_item)
-
-                elif table_ellipse[i][1] == "fill_color":
-                    color = item.brush().color()
-                    color_str = f"{color.red()},{color.green()},{color.blue()},{color.alpha()}"
-                    widget_item = QTableWidgetItem(color_str)
-                    widget_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                    self.property_table.setItem(i,1,widget_item)
-
-                elif table_ellipse[i][1] == "line_width":
-                    width = item.pen().width()
-                    widget_item = QTableWidgetItem(str(width))
-                    widget_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                    self.property_table.setItem(i,1,widget_item)
-
-                elif table_ellipse[i][1] == "line_color":
-                    color = item.pen().color()
-                    color_str = f"{color.red()},{color.green()},{color.blue()},{color.alpha()}"
-                    widget_item = QTableWidgetItem(color_str)
-                    widget_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                    self.property_table.setItem(i,1,widget_item)
-
-                elif table_ellipse[i][1] == "zValue":
-                    zValue = item.zValue()
-                    widget_item = QTableWidgetItem(str(zValue))
-                    widget_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                    self.property_table.setItem(i,1,widget_item)
-
-        elif isinstance(item, MyPictureItem):
-
-            item : MyGraphicsRectItem
-            self.property_table.setRowCount(0)
-
-            table_pic = table_data["pic"]
-            for i in range(len(table_pic)):
-                self.property_table.insertRow(i)
-                widget_item = QTableWidgetItem(table_pic[i][2])
-                widget_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                self.property_table.setItem(i,0,widget_item)
-
-                if table_pic[i][1] == "pic_location":
-                    widget_item = QTableWidgetItem(str(int(item.x())) + \
-                                                             "," + str(int(item.y())))
-                    widget_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                    self.property_table.setItem(i,1,widget_item)
-
-                elif table_pic[i][1] == "pic_width":
-                    rect = item.boundingRect()   
-                    widget_item = QTableWidgetItem(str(int(rect.width())))     
-                    widget_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                    self.property_table.setItem(i,1,widget_item)
-                
-                elif table_pic[i][1] == "text_location":
-                    widget_item = QTableWidgetItem(str(int(item.textItem.x())) + \
-                                                             "," + str(int(item.textItem.y())))
-                    widget_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                    self.property_table.setItem(i,1,widget_item)
-
-                elif table_pic[i][1] == "text_width":
-                    widget_item = QTableWidgetItem(str(int(item.textItem.font().pointSize())))
-                    widget_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                    self.property_table.setItem(i,1,widget_item)
-
-                elif table_pic[i][1] == "zValue":
-                    widget_item = QTableWidgetItem(str(item.zValue()))
-                    widget_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                    self.property_table.setItem(i,1,widget_item)
-
-        elif isinstance(item, MyGraphicsSimpleTextItem):
-            item: MyGraphicsSimpleTextItem
-            self.property_table.setRowCount(0)
-
-            table_text = table_data["text"]
-
-            for i in range(len(table_text)):
-                self.property_table.insertRow(i)
-                widget_item = QTableWidgetItem(table_text[i][2])
-                widget_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                self.property_table.setItem(i,0,widget_item)
-
-                if table_text[i][1] == "text_content":
-                    widget_item = QTableWidgetItem(item.text())
-                    widget_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                    self.property_table.setItem(i,1,widget_item)
-                
-                elif table_text[i][1] == "text_color":
-                    widget_item = QTableWidgetItem(item.text_color_name)
-                    widget_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                    self.property_table.setItem(i,1,widget_item)
-                
-                elif table_text[i][1] == "text_size":
-                    widget_item = QTableWidgetItem(str(item.font().pointSize()))
-                    widget_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                    self.property_table.setItem(i,1,widget_item)
-
-                elif table_text[i][1] == "text_font":
-                    widget_item = QTableWidgetItem(item.font().family())
-                    widget_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                    self.property_table.setItem(i,1,widget_item)
-
-                elif table_text[i][1] == "text_weight":
-                    widget_item = QTableWidgetItem(str(item.font().weight()))
-                    widget_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                    self.property_table.setItem(i,1,widget_item)
-
-                elif table_text[i][1] == "zValue":
-                    widget_item = QTableWidgetItem(str(item.zValue()))
-                    widget_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)  
-                    self.property_table.setItem(i,1,widget_item)
-
-        elif item is None:
-            self.property_table.setRowCount(0)
-
-
-        pass
-    
-    def update_item(self, property_type, value):
-        current_item = self.property_table.current_graphics_item
-        print("update table")
-        if current_item is None:
-            return
-        if isinstance(current_item, MyPictureItem):
-            current_item: MyPictureItem
-            if property_type == "pic_location":
-                x, y = value.split(",")
-                current_item.setPos(int(x), int(y))
-            elif property_type == "pic_width":
-                pass
-'''
 
 if __name__ == '__main__':
     app = QApplication([])
