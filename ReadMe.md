@@ -23,7 +23,7 @@
 | 风泵	|✔|	消息确认和重发未实现|
 
 ## 使用方法
-用python 运行 app.py即可打开工控前端
-web文件中的mine_cc_start.bat可启动服务端
-使用打开功能载入 test.gkqd 文件可看到图片中的效果。
+用python 运行 app.py即可打开工控前端  
+web文件中的mine_cc_start.bat可启动服务端  
+使用打开功能载入 test.gkqd 文件可看到图片中的效果。  
 
