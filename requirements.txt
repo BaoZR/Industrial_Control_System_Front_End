@@ -1,0 +1,4 @@
+pandas==2.0.3
+PyQt5==5.15.11
+PyQt5_sip==12.15.0
+PySide6==6.6.3
