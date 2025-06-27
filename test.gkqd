@@ -1,0 +1,302 @@
+[
+    {
+        "type": "MyGraphicsSimpleTextItem",
+        "pos": [
+            460.0,
+            63.0
+        ],
+        "text": "水箱",
+        "text_color": "red",
+        "font_family": "微软雅黑",
+        "font_size": 12,
+        "font_weight": 40,
+        "zValue": 1.0
+    },
+    {
+        "type": "MyGraphicsSimpleTextItem",
+        "pos": [
+            451.0,
+            400.0
+        ],
+        "text": "水箱",
+        "text_color": "red",
+        "font_family": "微软雅黑",
+        "font_size": 12,
+        "font_weight": 40,
+        "zValue": 1.0
+    },
+    {
+        "type": "MyPictureItem",
+        "pic_name": "wind-meter",
+        "pos": [
+            454.0,
+            295.0
+        ],
+        "icon_width": 40,
+        "text": "风速:0.05\n",
+        "zValue": 0.0,
+        "device_sn": "aaaa0023"
+    },
+    {
+        "type": "MyPictureItem",
+        "pic_name": "wind-meter",
+        "pos": [
+            449.0,
+            153.0
+        ],
+        "icon_width": 40,
+        "text": "风速:0.60\n",
+        "zValue": 0.0,
+        "device_sn": "aaaa0003"
+    },
+    {
+        "type": "MyPictureItem",
+        "pic_name": "gas-meter",
+        "pos": [
+            653.0,
+            41.0
+        ],
+        "icon_width": 40,
+        "text": "CO:0.043\nHCL:0.077\nSO2:0.013",
+        "zValue": 0.0,
+        "device_sn": "aaaa0001"
+    },
+    {
+        "type": "MyPictureItem",
+        "pic_name": "hydrant",
+        "pos": [
+            95.0,
+            185.0
+        ],
+        "icon_width": 40,
+        "text": "水泵",
+        "zValue": 0.0
+    },
+    {
+        "type": "MyPictureItem",
+        "pic_name": "hydrant",
+        "pos": [
+            82.0,
+            309.0
+        ],
+        "icon_width": 40,
+        "text": "水泵",
+        "zValue": 0.0
+    },
+    {
+        "type": "MyPictureItem",
+        "pic_name": "water-meter",
+        "pos": [
+            239.0,
+            51.0
+        ],
+        "icon_width": 40,
+        "text": "水压:3053.900\n流速:94.940",
+        "zValue": 0.0,
+        "device_sn": "aaaa0024"
+    },
+    {
+        "type": "MyPictureItem",
+        "pic_name": "water-meter",
+        "pos": [
+            225.0,
+            379.0
+        ],
+        "icon_width": 40,
+        "text": "水压:3082.700\n流速:95.030",
+        "zValue": 0.0,
+        "device_sn": "aaaa0004"
+    },
+    {
+        "type": "MyPictureItem",
+        "pic_name": "temp-meter",
+        "pos": [
+            585.0,
+            52.0
+        ],
+        "icon_width": 40,
+        "text": "温度:24.940\n湿度:49.460",
+        "zValue": 0.0,
+        "device_sn": "aaaa0002"
+    },
+    {
+        "type": "MyGraphicsLineItem",
+        "pos": [
+            176.0,
+            211.0
+        ],
+        "start": [
+            -61.0,
+            -18.0
+        ],
+        "pen_width": 4,
+        "pen_color": [
+            0,
+            0,
+            0,
+            255
+        ],
+        "length": 170.48460341039598,
+        "angle": 43.336274995708415,
+        "zValue": 0.0
+    },
+    {
+        "type": "MyGraphicsLineItem",
+        "pos": [
+            123.0,
+            345.0
+        ],
+        "start": [
+            -8.0,
+            -5.0
+        ],
+        "pen_width": 4,
+        "pen_color": [
+            0,
+            0,
+            0,
+            255
+        ],
+        "length": 128.82546332150332,
+        "angle": 332.2414593989399,
+        "zValue": 0.0
+    },
+    {
+        "type": "MyGraphicsRectItem",
+        "pos": [
+            448.0,
+            66.0
+        ],
+        "rect": [
+            -13.0,
+            -27.0,
+            100.0,
+            80.0
+        ],
+        "pen_color": [
+            0,
+            0,
+            0,
+            255
+        ],
+        "pen_width": 4,
+        "brush_color": [
+            255,
+            255,
+            255,
+            255
+        ],
+        "zValue": 0.0
+    },
+    {
+        "type": "MyGraphicsLineItem",
+        "pos": [
+            337.0,
+            54.0
+        ],
+        "start": [
+            -59.0,
+            23.0
+        ],
+        "pen_width": 4,
+        "pen_color": [
+            0,
+            0,
+            0,
+            255
+        ],
+        "length": 152.0,
+        "angle": -0.0,
+        "zValue": 0.0
+    },
+    {
+        "type": "MyGraphicsLineItem",
+        "pos": [
+            341.0,
+            373.0
+        ],
+        "start": [
+            -73.0,
+            34.0
+        ],
+        "pen_width": 4,
+        "pen_color": [
+            0,
+            0,
+            0,
+            255
+        ],
+        "length": 150.0,
+        "angle": -0.0,
+        "zValue": 0.0
+    },
+    {
+        "type": "MyGraphicsRectItem",
+        "pos": [
+            494.0,
+            386.0
+        ],
+        "rect": [
+            -69.0,
+            -14.0,
+            100.0,
+            80.0
+        ],
+        "pen_color": [
+            0,
+            0,
+            0,
+            255
+        ],
+        "pen_width": 4,
+        "brush_color": [
+            255,
+            255,
+            255,
+            255
+        ],
+        "zValue": 0.0
+    },
+    {
+        "type": "MyPictureItem",
+        "pic_name": "gas-meter",
+        "pos": [
+            554.0,
+            447.0
+        ],
+        "icon_width": 40,
+        "text": "CO:0.048\nHCL:0.074\nSO2:0.016",
+        "zValue": 0.0,
+        "device_sn": "aaaa0021"
+    },
+    {
+        "type": "MyPictureItem",
+        "pic_name": "temp-meter",
+        "pos": [
+            657.0,
+            413.0
+        ],
+        "icon_width": 40,
+        "text": "温度:24.790\n湿度:49.500",
+        "zValue": 0.0,
+        "device_sn": "aaaa0022"
+    },
+    {
+        "type": "BlowerPixmapBase",
+        "pos": [
+            341.0,
+            153.0
+        ],
+        "zValue": 0.0,
+        "device_sn": "bbbb0003"
+    },
+    {
+        "type": "BlowerPixmapBase",
+        "pos": [
+            344.0,
+            303.0
+        ],
+        "zValue": 0.0,
+        "device_sn": "bbbb0023"
+    }
+]
